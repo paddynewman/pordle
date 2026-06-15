@@ -1,0 +1,855 @@
+﻿<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pordle</title>
+  <style>
+    :root {
+      --bg-1: #f7f2e8;
+      --bg-2: #e8efe7;
+      --ink: #1f2d2f;
+      --tile: #ffffff;
+      --tile-border: #9fb0b2;
+      --correct: #2f7d32;
+      --present: #b68216;
+      --absent: #687478;
+      --keyboard-key: #dde6e7;
+      --keyboard-ink: #253739;
+      --shadow: rgba(24, 33, 34, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: max(0.375rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+      overflow-x: hidden;
+      overscroll-behavior-y: none;
+    }
+
+    .app {
+      width: min(100%, 430px);
+      background: #ffffff;
+      border: 0;
+      border-radius: 0;
+      backdrop-filter: none;
+      box-shadow: none;
+      padding: 0.5rem 0.9rem 1.1rem;
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+
+    .topbar-controls {
+      display: flex;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .pill {
+      border: 1px solid rgba(38, 54, 56, 0.3);
+      background: #f6faf9;
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .pill:active {
+      transform: scale(0.98);
+    }
+
+    .status {
+      min-height: 1.25rem;
+      font-size: 0.93rem;
+      font-weight: 700;
+      text-align: center;
+      color: #334649;
+    }
+
+    .board {
+      display: grid;
+      gap: 0.27rem;
+      margin: 0 auto;
+      width: min(100%, 280px);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.27rem;
+    }
+
+    .tile {
+      aspect-ratio: 1 / 1;
+      border: 2px solid var(--tile-border);
+      background: var(--tile);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: clamp(1.07rem, 4.7vw, 1.4rem);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      user-select: none;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
+    }
+
+    .tile.filled {
+      border-color: #708285;
+    }
+
+    .tile.pop {
+      animation: pop 120ms ease;
+    }
+
+    .tile.correct {
+      background: var(--correct);
+      border-color: var(--correct);
+      color: #fff;
+    }
+
+    .tile.present {
+      background: var(--present);
+      border-color: var(--present);
+      color: #fff;
+    }
+
+    .tile.absent {
+      background: var(--absent);
+      border-color: var(--absent);
+      color: #fff;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.09); }
+      100% { transform: scale(1); }
+    }
+
+    .keyboard {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .keyrow {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      gap: 0.35rem;
+    }
+
+    .key {
+      border: 0;
+      border-radius: 8px;
+      background: var(--keyboard-key);
+      color: var(--keyboard-ink);
+      font-weight: 800;
+      font-size: 0.82rem;
+      min-height: 2.6rem;
+      min-width: 0;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .key.action {
+      grid-column: span 2;
+      font-size: 0.72rem;
+      letter-spacing: 0;
+    }
+
+    .key.correct {
+      background: var(--correct);
+      color: #fff;
+    }
+
+    .key.present {
+      background: var(--present);
+      color: #fff;
+    }
+
+    .key.absent {
+      background: var(--absent);
+      color: #fff;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #4b5f62;
+    }
+
+    @media (max-width: 420px) {
+      .app {
+        padding: 0.425rem 0.65rem 1rem;
+        gap: 0.72rem;
+      }
+
+      h1 {
+        font-size: 1.38rem;
+      }
+
+      .board {
+        width: min(100%, 253px);
+      }
+
+      .row {
+        gap: 0.21rem;
+      }
+
+      .tile {
+        font-size: clamp(0.96rem, 5.6vw, 1.27rem);
+      }
+
+      .keyrow {
+        gap: 0.25rem;
+      }
+
+      .key {
+        min-height: 2.3rem;
+        font-size: 0.74rem;
+        padding: 0 0.12rem;
+      }
+
+      .key.action {
+        font-size: 0.64rem;
+      }
+
+      .pill {
+        padding: 0.38rem 0.6rem;
+        font-size: 0.78rem;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .app {
+        padding: 0.4rem 0.6rem 0.9rem;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.55rem;
+      }
+
+      h1 {
+        text-align: center;
+      }
+
+      .topbar-controls {
+        justify-content: center;
+      }
+
+      .board {
+        width: min(100%, 235px);
+      }
+
+      .key {
+        min-height: 2.35rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="Pordle word game">
+    <section id="board" class="board" aria-label="Game board"></section>
+
+    <section class="keyboard" id="keyboard" aria-label="On-screen keyboard"></section>
+
+    <p id="status" class="status" aria-live="polite">Guess the 5-letter word.</p>
+
+  </main>
+
+  <script>
+    const BRITISH_WORDS = [
+      "adore", "agate", "aisle", "amber", "amend", "angle", "apple", "arise", "atlas", "baker",
+      "basil", "beach", "beard", "beech", "bench", "berry", "binge", "birch", "black", "blaze",
+      "blend", "bloke", "blush", "board", "boast", "bough", "brain", "brake", "brave", "bread",
+      "brick", "bring", "broad", "brook", "brown", "build", "cabin", "camel", "caper", "cargo",
+      "carol", "chalk", "charm", "chase", "cheer", "chess", "chime", "choir", "civil", "claim",
+      "clasp", "clean", "clear", "clerk", "climb", "clock", "cloud", "coach", "coast", "coral",
+      "craft", "crane", "crisp", "crowd", "crown", "curve", "dairy", "dance", "debut", "delay",
+      "demon", "diner", "dodge", "donor", "doubt", "dough", "draft", "drain", "dream", "drift",
+      "drill", "drink", "drive", "eager", "earth", "elder", "elect", "elite", "empty", "enjoy",
+      "entry", "equal", "fable", "faith", "fibre", "field", "flame", "flint", "flora", "flour",
+      "focus", "forge", "fresh", "frost", "fruit", "gamer", "gauge", "gleam", "glove", "grace",
+      "grain", "grand", "grant", "grass", "great", "green", "greet", "grief", "grove", "guard",
+      "guest", "guide", "habit", "happy", "heart", "hedge", "honey", "horse", "hotel", "house",
+      "hover", "human", "humid", "hurry", "ideal", "image", "imply", "index", "inner", "input",
+      "jolly", "judge", "juice", "kneel", "knife", "knock", "label", "laser", "later", "laugh",
+      "layer", "learn", "lemon", "light", "limit", "linen", "litre", "liver", "local", "lodge",
+      "logic", "lunar", "lunch", "magic", "major", "maker", "maple", "march", "match", "medal",
+      "merit", "metre", "minor", "mirth", "mould", "motor", "mount", "music", "naval", "nerve",
+      "noble", "noise", "north", "novel", "nurse", "ocean", "odour", "offer", "olive", "onion",
+      "opera", "orbit", "order", "organ", "other", "paint", "panel", "paper", "party", "peace",
+      "pearl", "phase", "phone", "piano", "pilot", "pitch", "plain", "plane", "plant", "plate",
+      "plaza", "pluck", "poise", "pound", "power", "press", "price", "pride", "prime", "print",
+      "prize", "proof", "proud", "queue", "quick", "quiet", "quilt", "raise", "ranch", "range",
+      "rapid", "ratio", "reach", "ready", "reign", "relax", "reply", "rhyme", "rider", "rival",
+      "river", "robot", "rough", "round", "royal", "ruler", "rural", "salad", "scale", "scene",
+      "scope", "score", "scrap", "sense", "serve", "shade", "shaft", "shake", "shall", "shape",
+      "share", "sheep", "shelf", "shift", "shine", "shirt", "shore", "short", "sight", "siren",
+      "skill", "slate", "slice", "slope", "small", "smart", "smile", "smoke", "solid", "solve",
+      "sound", "south", "space", "spare", "speak", "speed", "spend", "spice", "spike", "spine",
+      "spite", "sport", "spray", "squad", "stack", "stage", "stain", "stair", "stamp", "stand",
+      "stare", "start", "state", "steam", "steel", "stick", "still", "stock", "stone", "store",
+      "storm", "story", "strap", "straw", "strip", "study", "style", "sugar", "sweat", "sweep",
+      "sweet", "sword", "table", "taste", "teach", "tease", "tempo", "thank", "their", "theme",
+      "there", "thick", "thing", "think", "thorn", "those", "three", "throw", "tiger", "title",
+      "today", "topic", "total", "touch", "tower", "trace", "track", "trade", "train", "treat",
+      "trend", "trial", "tribe", "trick", "truck", "truly", "trust", "truth", "tulip", "tutor",
+      "under", "union", "unity", "upper", "urban", "usage", "vague", "valid", "value", "valve",
+      "venue", "verse", "video", "vicar", "vital", "vivid", "voice", "waste", "watch", "water",
+      "weary", "weave", "whale", "wheat", "wheel", "where", "which", "while", "white", "whole",
+      "woman", "world", "worry", "wound", "wrath", "write", "wrong", "xenon", "yacht", "young",
+      "youth", "zebra",
+      "abide", "abode", "adieu", "adorn", "afoot", "aglow", "aloud", "amity", "ankle", "annex",
+      "apron", "attic", "bacon", "bagel", "barge", "basic", "bezel", "bloat", "booth", "brisk",
+      "broom", "cairn", "candy", "canoe", "caste", "cello", "chard", "cheek", "cider", "clued",
+      "comet", "couch", "cover", "creak", "cried", "daily", "datum", "devil", "drove", "eclat",
+      "edict", "elbow", "evoke", "facet", "faint", "farce", "feast", "ferry", "finer", "focal",
+      "foyer", "gaunt", "genie", "glint", "gloat", "golem", "grasp", "haste", "hinge", "hoard",
+      "ivory", "jewel", "kayak", "ledge", "llama", "lobby", "lumen", "manor", "mango", "mason",
+      "mayor", "mince", "nadir", "niece", "ninth", "noisy", "overt", "oxide", "paler", "pasta",
+      "patio", "petal", "picky", "pinch", "plank", "point", "polar", "prone", "quash", "quirk",
+      "radar", "raven", "realm", "reedy", "risky", "safer", "saint", "salon", "satyr", "scarf",
+      "scary", "shard", "shoal", "shout", "shrub", "siege", "silly", "skirt", "slant", "sling",
+      "snare", "snarl", "soapy", "spoon", "stint", "sunny", "surer", "tenor", "throb", "timer",
+      "toxin", "tramp", "ultra", "umbra", "vicar", "vixen", "woven",
+      "aback", "abase", "abbey", "abbot", "abhor", "abuse", "ached", "acorn", "acrid", "actor",
+      "acute", "adapt", "adept", "admin", "admit", "adobe", "adopt", "adore", "adult", "aegis",
+      "aerie", "affix", "afire", "afoul", "after", "again", "agent", "agile", "aglow", "agony",
+      "ahead", "aisle", "alarm", "album", "alert", "algae", "alias", "alibi", "alien", "align",
+      "alike", "alive", "allay", "allot", "allow", "alloy", "aloft", "alone", "along", "aloof",
+      "alter", "amass", "amaze", "amber", "amble", "amend", "amiss", "among", "ample", "angel",
+      "anger", "angle", "angry", "angst", "anime", "ankle", "annoy", "annul", "anvil", "aorta",
+      "apart", "aphid", "aping", "apple", "apply", "april", "arena", "argot", "argue", "arise",
+      "armed", "armor", "aroma", "array", "arrow", "arson", "artsy", "ascot", "ashen", "aside",
+      "asked", "askew", "assay", "asset", "atlas", "atoll", "attic", "audio", "audit", "augur",
+      "aunty", "avail", "avert", "avoid", "await", "awake", "award", "aware", "awful", "axial",
+      "azure", "baddy", "badly", "baggy", "baler", "balmy", "banal", "bandy", "barmy", "baron",
+      "basin", "basis", "baste", "batch", "bathe", "baton", "bayou", "beady", "beech", "beget",
+      "begun", "belch", "belie", "belly", "below", "bench", "beret", "berry", "beset", "biddy",
+      "bigot", "billy", "binge", "biped", "birch", "birth", "bison", "bitty", "black", "blade",
+      "bland", "blank", "blare", "blast", "blaze", "bleak", "bleat", "bleed", "bleep", "blend",
+      "bless", "blimp", "blind", "blink", "bliss", "blitz", "bloat", "block", "bloke", "blond",
+      "blood", "bloom", "blown", "bluer", "bluff", "blunt", "blurb", "blurt", "blush", "board",
+      "boast", "bogey", "bogie", "boing", "booby", "boost", "booth", "booty", "borne", "bosom",
+      "bossy", "botch", "bough", "bound", "bowel", "boxer", "brace", "braid", "brain", "brake",
+      "brand", "brash", "brass", "brave", "bravo", "brawl", "brawn", "bread", "break", "breed",
+      "briar", "bribe", "brick", "bride", "brief", "brine", "bring", "brink", "brisk", "broad",
+      "broil", "broke", "brood", "brook", "broom", "broth", "brown", "brunt", "brush", "brute",
+      "buddy", "buggy", "bugle", "build", "built", "bulge", "bulky", "bully", "bunch", "bunny",
+      "burly", "burnt", "burst", "bused", "bushy", "busty", "butch", "butte", "buxom", "buyer",
+      "bylaw", "cabal", "cabin", "cable", "cacao", "cache", "cacti", "caddy", "cadet", "cagey",
+      "cairn", "camel", "cameo", "canal", "candy", "canny", "canoe", "canon", "caper", "caput",
+      "cargo", "carol", "carry", "carve", "caste", "catch", "cater", "catty", "caulk", "cause",
+      "cease", "cedar", "cello", "chafe", "chain", "chair", "chalk", "champ", "chant", "chaos",
+      "chard", "charm", "chart", "chase", "chasm", "cheap", "cheat", "check", "cheek", "cheer",
+      "chess", "chest", "chide", "chief", "child", "chili", "chill", "chime", "china", "chirp",
+      "choke", "chord", "chore", "chose", "chuck", "chump", "chunk", "churn", "cider", "cigar",
+      "cinch", "circa", "civic", "civil", "clack", "claim", "clamp", "clang", "clank", "clash",
+      "clasp", "class", "clean", "clear", "cleat", "cleft", "clerk", "click", "cliff", "climb",
+      "cling", "clink", "cloak", "clock", "clone", "close", "cloth", "cloud", "clout", "clown",
+      "clued", "clump", "clung", "coach", "coast", "cobra", "cocoa", "colon", "colour", "comet",
+      "comfy", "comic", "comma", "conch", "condo", "copse", "coral", "corny", "cough", "could",
+      "count", "coupe", "court", "coven", "cover", "covet", "cower", "coyly", "crack", "craft",
+      "cramp", "crane", "crank", "crash", "crass", "crate", "crave", "crawl", "craze", "crazy",
+      "creak", "cream", "credo", "creed", "creek", "creep", "creme", "crepe", "crest", "cried",
+      "crime", "crimp", "crisp", "croak", "crock", "crone", "crony", "crook", "cross", "crowd",
+      "crown", "crude", "cruel", "crumb", "crush", "crust", "crypt", "cumin", "curio", "curly",
+      "curry", "curse", "curve", "curvy", "cutie", "cycle", "cynic", "daily", "dairy", "daisy",
+      "dance", "dandy", "dated", "datum", "daunt", "dealt", "death", "debit", "debug", "debut",
+      "decal", "decor", "decoy", "decry", "defer", "deity", "delay", "delta", "demon", "demur",
+      "denim", "dense", "depot", "depth", "derby", "detox", "deuce", "devil", "diary", "diced",
+      "diner", "dingo", "dingy", "diode", "dirge", "dirty", "disco", "ditch", "ditto", "ditty",
+      "dizzy", "dodge", "dogma", "doing", "donor", "donut", "dopey", "doubt", "dough", "dowdy",
+      "draft", "drain", "drake", "drama", "drank", "drape", "drawl", "drawn", "dread", "dream",
+      "dress", "dried", "drier", "drift", "drill", "drink", "drive", "droid", "droll", "drone",
+      "drool", "droop", "dross", "drove", "drown", "druid", "drunk", "dryer", "duchy", "dully",
+      "dummy", "dumpy", "dunce", "dusky", "dusty", "dutch", "dwarf", "dwell", "eager", "eagle",
+      "early", "earth", "easel", "eaten", "ebony", "edict", "edify", "eerie", "egret", "eight",
+      "elbow", "elder", "elect", "elegy", "elite", "elope", "elude", "email", "embed", "ember",
+      "emcee", "empty", "enact", "endow", "enjoy", "ennui", "ensue", "enter", "entry", "equal",
+      "equip", "erase", "erect", "error", "erupt", "essay", "ether", "ethic", "ethos", "evade",
+      "event", "every", "evict", "evoke", "exact", "exalt", "excel", "exert", "exile", "exist",
+      "extra", "fable", "facet", "faint", "fairy", "faith", "false", "fancy", "farce", "fatal",
+      "fatty", "fault", "fauna", "favour", "feast", "fecal", "feign", "fella", "felon", "fence",
+      "feral", "ferry", "fewer", "fibre", "field", "fiend", "fiery", "fifth", "fifty", "fight",
+      "filly", "filmy", "filth", "final", "finch", "finer", "first", "fishy", "fixer", "fizzy",
+      "fjord", "flack", "flail", "flair", "flake", "flaky", "flame", "flank", "flare", "flash",
+      "flask", "fleet", "flesh", "flick", "flier", "fling", "flint", "flirt", "float", "flock",
+      "flood", "floor", "flora", "floss", "flour", "flout", "flown", "fluff", "fluid", "fluke",
+      "flume", "flung", "flunk", "flush", "flute", "foamy", "focal", "focus", "foggy", "foist",
+      "folio", "foray", "forge", "forgo", "forte", "forth", "forty", "forum", "found", "frail",
+      "frame", "frank", "fraud", "freak", "freed", "freer", "fresh", "fried", "frill", "frisk",
+      "frock", "frond", "front", "frost", "froth", "frown", "froze", "fruit", "fudge", "fugue",
+      "fully", "fungi", "funky", "funny", "furry", "fussy", "fuzzy", "gaily", "gamer", "gamma",
+      "gassy", "gauge", "gaunt", "gauze", "gavel", "gecko", "geese", "genie", "genre", "ghost",
+      "ghoul", "giant", "giddy", "gipsy", "girly", "given", "glade", "gland", "glare", "glass",
+      "glaze", "gleam", "glean", "glide", "glint", "gloat", "globe", "gloom", "glory", "glove",
+      "glyph", "gnash", "gnome", "godly", "going", "golem", "golly", "goner", "goody", "gooey",
+      "goofy", "gorge", "gouge", "gourd", "grace", "grade", "graft", "grail", "grain", "grand",
+      "grant", "grape", "graph", "grasp", "grass", "grate", "grave", "gravy", "great", "greed",
+      "green", "greet", "grief", "grill", "grime", "grimy", "grind", "gripe", "groan", "groin",
+      "groom", "grope", "gross", "group", "grout", "grove", "growl", "grown", "gruel", "gruff",
+      "grunt", "guard", "guess", "guest", "guide", "guild", "guile", "guilt", "guise", "gulch",
+      "gully", "gumbo", "gummy", "guppy", "gusto", "gusty", "gypsy", "habit", "hairy", "halve",
+      "handy", "happy", "hardy", "harem", "harpy", "harsh", "haste", "hasty", "hatch", "haunt",
+      "haven", "havoc", "hazel", "heady", "heard", "heart", "heavy", "hedge", "hefty", "heist",
+      "hello", "hence", "heron", "hilly", "hinge", "hippo", "hitch", "hoard", "hobby", "hoist",
+      "holly", "honey", "honour", "horde", "horse", "hotel", "house", "hovel", "hover", "howdy",
+      "human", "humid", "humor", "hurry", "husky", "hussy", "hydro", "hyena", "hymen", "icing",
+      "ideal", "idiom", "idiot", "idler", "igloo", "iliac", "image", "imply", "inbox", "incur",
+      "index", "inept", "inert", "infer", "ingot", "inlet", "inner", "input", "inter", "intro",
+      "ionic", "irate", "irony", "issue", "itchy", "ivory", "jaunt", "jazzy", "jelly", "jerky",
+      "jetty", "jewel", "jiffy", "joint", "joist", "joker", "jolly", "joust", "judge", "juice",
+      "juicy", "jumbo", "jumpy", "juror", "kayak", "kebab", "khaki", "kinky", "kiosk", "kitty",
+      "knack", "knave", "knead", "kneel", "knelt", "knife", "knock", "known", "koala", "label",
+      "labour", "laden", "ladle", "lager", "lance", "lanky", "lapel", "lapse", "large", "larva",
+      "lasso", "latch", "later", "lathe", "latte", "laugh", "layer", "leach", "leafy", "leaky",
+      "leant", "leapt", "learn", "lease", "leash", "least", "leave", "ledge", "leech", "legal",
+      "lemon", "lemur", "level", "lever", "libel", "light", "liken", "lilac", "limbo", "limit",
+      "linen", "liner", "lingo", "lipid", "lithe", "liver", "llama", "loamy", "loath", "lobby",
+      "local", "locus", "lodge", "lofty", "logic", "login", "loose", "lorry", "loser", "louse",
+      "lousy", "lover", "lower", "loyal", "lucid", "lucky", "lumen", "lumpy", "lunar", "lunch",
+      "lunge", "lurch", "lurid", "lymph", "lyric", "macro", "madam", "madly", "mafia", "magic",
+      "magma", "maize", "major", "maker", "mamma", "mango", "manic", "manor", "maple", "march",
+      "marry", "marsh", "mason", "match", "matey", "maxim", "maybe", "mayor", "mealy", "meant",
+      "medal", "media", "medic", "melee", "melon", "mercy", "merge", "merit", "merry", "metal",
+      "metre", "micro", "midge", "midst", "might", "mimic", "mince", "minim", "minor", "minty",
+      "minus", "mirth", "miser", "missy", "mocha", "model", "modem", "mogul", "moist", "molar",
+      "moldy", "money", "month", "moody", "moose", "moral", "moron", "motel", "motif", "motor",
+      "mould", "mound", "mount", "mourn", "mouse", "mouth", "mover", "movie", "mower", "mucky",
+      "muddy", "mural", "murky", "mushy", "music", "musty", "myrrh", "nadir", "naiad", "naive",
+      "nanny", "nasal", "nasty", "naval", "needs", "neigh", "nerdy", "nerve", "never", "newly",
+      "nicer", "niche", "niece", "night", "ninja", "ninny", "ninth", "noble", "nobly", "noise",
+      "noisy", "nomad", "north", "nosey", "notch", "novel", "nudge", "nurse", "nutty", "nylon",
+      "oaken", "oasis", "obese", "occur", "ocean", "octal", "octet", "odder", "oddly", "offal",
+      "offer", "often", "olden", "older", "olive", "omega", "onion", "onset", "opera", "opine",
+      "opium", "optic", "orbit", "order", "organ", "other", "otter", "ought", "ounce", "outdo",
+      "outer", "ovary", "ovate", "overt", "ovine", "ovoid", "owing", "owner", "oxide", "ozone",
+      "paddy", "pagan", "paint", "paler", "palsy", "panel", "panic", "pansy", "paper", "parer",
+      "parka", "parry", "party", "pasta", "pasty", "patch", "patio", "pause", "peace", "peach",
+      "pearl", "pecan", "pedal", "pence", "penne", "penny", "perch", "peril", "pesky", "petal",
+      "petty", "phase", "phone", "phony", "photo", "piano", "piece", "piety", "piggy", "pilot",
+      "pinch", "pinto", "piper", "pique", "pitch", "pithy", "pivot", "pixel", "pixie", "place",
+      "plaid", "plain", "plait", "plane", "plank", "plant", "plate", "plaza", "plead", "pluck",
+      "plume", "plump", "plush", "poach", "point", "poise", "poker", "polar", "polka", "porch",
+      "pound", "power", "prank", "prawn", "press", "price", "prick", "pride", "prime", "print",
+      "prior", "prism", "privy", "prize", "probe", "prone", "proof", "proud", "prove", "prowl",
+      "proxy", "prune", "psalm", "pubic", "pudgy", "puffy", "pupil", "puppy", "puree", "purge",
+      "purse", "pushy", "putty", "quack", "quail", "quake", "qualm", "queen", "queer", "query",
+      "quest", "queue", "quick", "quiet", "quill", "quilt", "quirk", "quite", "quota", "quote",
+      "radar", "radio", "rainy", "raise", "rally", "ralph", "ranch", "range", "rapid", "rarer",
+      "raspy", "ratio", "ratty", "raven", "rayon", "razor", "reach", "react", "ready", "realm",
+      "rearm", "rebar", "rebel", "rebus", "rebut", "recap", "recur", "refer", "refit", "regal",
+      "reign", "relax", "relay", "relic", "remit", "renal", "renew", "repay", "reply", "rerun",
+      "reset", "resin", "retch", "retro", "rhyme", "rider", "ridge", "rifle", "right", "rigid",
+      "rinse", "ripen", "riper", "risen", "risky", "rival", "river", "roach", "roast", "robin",
+      "robot", "rocky", "rogue", "roman", "roomy", "roost", "rotor", "rough", "round", "route",
+      "rover", "royal", "ruddy", "rugby", "ruler", "rumba", "rumor", "rural", "rusty", "sable",
+      "safer", "saint", "salad", "salon", "salty", "salve", "sandy", "sassy", "satin", "satyr",
+      "sauce", "saucy", "sauna", "saute", "savor", "savvy", "scald", "scale", "scalp", "scaly",
+      "scamp", "scant", "scare", "scarf", "scary", "scene", "scent", "scion", "scoff", "scone",
+      "scope", "score", "scorn", "scour", "scout", "scram", "scrap", "scree", "screw", "scrub",
+      "seamy", "sedan", "seize", "sense", "sepia", "serif", "serve", "setup", "sever", "sewer",
+      "shack", "shade", "shady", "shaft", "shake", "shaky", "shale", "shall", "shame", "shank",
+      "shape", "shard", "share", "shark", "sharp", "shave", "shawl", "shear", "sheen", "sheep",
+      "sheer", "sheet", "shelf", "shell", "shied", "shift", "shine", "shiny", "shire", "shirt",
+      "shoal", "shock", "shone", "shook", "shoot", "shore", "short", "shout", "shove", "shown",
+      "showy", "shrew", "shrub", "shrug", "shuck", "shunt", "sided", "siege", "sieve", "sight",
+      "sigma", "silky", "silly", "sinew", "siren", "sissy", "sixth", "sixty", "skate", "skier",
+      "skill", "skimp", "skirt", "skulk", "skunk", "slack", "slain", "slang", "slant", "slash",
+      "slate", "sleek", "sleep", "sleet", "slept", "slice", "slick", "slide", "slime", "slimy",
+      "sling", "slink", "sloop", "slope", "slosh", "sloth", "slump", "slung", "slunk", "slurp",
+      "slush", "slyly", "smack", "small", "smart", "smash", "smear", "smell", "smile", "smirk",
+      "smite", "smith", "smock", "smoke", "smoky", "smote", "snack", "snail", "snake", "snaky",
+      "snare", "snarl", "sneak", "sneer", "snide", "sniff", "snipe", "snoop", "snore", "snort",
+      "snout", "snowy", "snuck", "soapy", "sober", "soggy", "solar", "solid", "solve", "sonar",
+      "sonic", "sooth", "sooty", "sorry", "sound", "south", "space", "spade", "spare", "spark",
+      "spasm", "speak", "spear", "speck", "speed", "spell", "spend", "spent", "sperm", "spice",
+      "spicy", "spied", "spiel", "spike", "spiky", "spill", "spilt", "spine", "spiny", "spire",
+      "spite", "splat", "split", "spoil", "spoke", "spoof", "spook", "spool", "spoon", "spore",
+      "sport", "spout", "spray", "spree", "sprig", "spunk", "spurn", "spurt", "squad", "squat",
+      "squid", "stack", "staff", "stage", "staid", "stain", "stair", "stake", "stale", "stalk",
+      "stall", "stamp", "stand", "stank", "stare", "stark", "start", "stash", "state", "stave",
+      "stead", "steak", "steal", "steam", "steed", "steel", "steep", "steer", "stein", "stern",
+      "stick", "stiff", "still", "stilt", "sting", "stink", "stint", "stock", "stoic", "stoke",
+      "stole", "stomp", "stone", "stony", "stood", "stool", "stoop", "store", "storm", "story",
+      "stout", "stove", "strap", "straw", "stray", "strip", "strop", "strut", "stuck", "study",
+      "stuff", "stump", "stung", "stunk", "stunt", "style", "suave", "sugar", "suite", "sulky",
+      "sully", "sunny", "super", "surer", "surge", "swain", "swami", "swamp", "swarm", "swash",
+      "swath", "sweat", "sweep", "sweet", "swell", "swept", "swift", "swill", "swine", "swing",
+      "swirl", "swish", "swoon", "swoop", "sword", "swore", "sworn", "syrup", "table", "taboo",
+      "tacit", "tacky", "taffy", "taint", "taken", "tally", "talon", "tamer", "tango", "taper",
+      "tapir", "tardy", "tarot", "taste", "tasty", "tatty", "taunt", "teach", "tears", "teary", "tease",
+      "tempo", "tenet", "tenor", "tense", "tepid", "terra", "terse", "testy", "thank", "their",
+      "theme", "there", "these", "thick", "thief", "thigh", "thing", "think", "third", "thong",
+      "thorn", "those", "three", "threw", "throw", "throb", "thumb", "thump", "thyme", "tiara",
+      "tibia", "tidal", "tiger", "tight", "tilde", "timer", "timid", "tipsy", "titan", "title",
+      "toast", "today", "toddy", "token", "tonal", "tonic", "tooth", "topaz", "topic", "torch",
+      "torso", "total", "totem", "touch", "tough", "towel", "tower", "toxin", "trace", "track",
+      "trade", "trail", "train", "trait", "tramp", "trash", "trawl", "tread", "treat", "trend",
+      "triad", "trial", "tribe", "trice", "trick", "tried", "tripe", "trite", "troll", "troop",
+      "trope", "trout", "truce", "truck", "truer", "truly", "trump", "trunk", "trust", "truth",
+      "tryst", "tuber", "tulip", "tulle", "tumor", "tuner", "tunic", "turbo", "tutor", "twang",
+      "tweak", "tweed", "tweet", "twice", "twine", "twirl", "twist", "tying", "udder", "ulcer",
+      "ultra", "umbra", "uncle", "under", "undid", "union", "unite", "unity", "unlit", "unmet",
+      "unset", "untie", "until", "upper", "upset", "urban", "usage", "usher", "using", "usual",
+      "usurp", "utile", "utter", "vague", "valid", "valor", "value", "valve", "vapid", "vapor",
+      "vault", "vegan", "venom", "venue", "verge", "verse", "vicar", "video", "vigil", "vigor",
+      "villa", "vinyl", "viola", "viper", "viral", "vital", "vivid", "vixen", "vocal", "vodka",
+      "vogue", "voice", "voila", "vomit", "voter", "vouch", "vowel", "wacky", "wafer", "wager",
+      "wagon", "waist", "waive", "waltz", "warty", "waste", "watch", "water", "waver", "weary",
+      "weave", "wedge", "weedy", "weigh", "weird", "welch", "welsh", "whale", "wharf", "wheat",
+      "wheel", "where", "which", "whiff", "while", "whine", "whiny", "whirl", "whisk", "white",
+      "whole", "whoop", "whose", "widen", "wider", "widow", "width", "wield", "wight", "willy",
+      "wimpy", "wince", "winch", "windy", "wiser", "witch", "witty", "woman", "women", "woody",
+      "wooly", "wordy", "world", "worry", "worse", "worst", "worth", "would", "wound", "woven",
+      "wrack", "wrath", "wreak", "wreck", "wrest", "wring", "wrist", "write", "wrong", "wrote",
+      "xenon", "yacht", "yearn", "yeast", "yield", "young", "youth", "zebra", "zesty", "zonal"
+    ];
+
+    const ROWS = 6;
+    const COLS = 5;
+    const KEY_GRID = [
+      ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+      ["A", "S", "D", "F", "G", "H", "J", "K", "L", "M"],
+      ["Z", "X", "C", "V", "B", "N", "DEL", "ENTER", "", ""]
+    ];
+
+    const boardEl = document.getElementById("board");
+    const statusEl = document.getElementById("status");
+
+    const keyboardEl = document.getElementById("keyboard");
+
+    let solution = "";
+    let guesses = [];
+    let currentGuess = "";
+    let gameOver = false;
+    let enterHoldTimer = null;
+    let suppressEnterTap = false;
+
+    const HELP_HOLD_MS = 3000;
+
+    const allowedWords = new Set(BRITISH_WORDS);
+
+    function pickRandomWord() {
+      const index = Math.floor(Math.random() * BRITISH_WORDS.length);
+      return BRITISH_WORDS[index];
+    }
+
+    function announce(message) {
+      statusEl.textContent = message;
+    }
+
+    function createBoard() {
+      boardEl.innerHTML = "";
+      for (let r = 0; r < ROWS; r += 1) {
+        const row = document.createElement("div");
+        row.className = "row";
+        for (let c = 0; c < COLS; c += 1) {
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          tile.setAttribute("role", "gridcell");
+          tile.dataset.row = String(r);
+          tile.dataset.col = String(c);
+          row.appendChild(tile);
+        }
+        boardEl.appendChild(row);
+      }
+    }
+
+    function makeKey(label) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "key";
+      button.dataset.key = label;
+      if (label === "ENTER" || label === "DEL") {
+        button.classList.add("action");
+      }
+      button.textContent = label === "DEL" ? "Delete" : label;
+      button.setAttribute("aria-label", label === "DEL" ? "Delete letter" : label);
+
+      if (label === "ENTER") {
+        const startHold = () => {
+          clearTimeout(enterHoldTimer);
+          suppressEnterTap = false;
+          enterHoldTimer = setTimeout(() => {
+            suppressEnterTap = true;
+            giveHint();
+          }, HELP_HOLD_MS);
+        };
+
+        const endHold = () => {
+          clearTimeout(enterHoldTimer);
+          enterHoldTimer = null;
+          if (suppressEnterTap) {
+            suppressEnterTap = false;
+            return;
+          }
+          handleInput(label);
+        };
+
+        const cancelHold = () => {
+          clearTimeout(enterHoldTimer);
+          enterHoldTimer = null;
+          suppressEnterTap = false;
+        };
+
+        button.addEventListener("touchstart", (event) => {
+          event.preventDefault();
+          startHold();
+        }, { passive: false });
+        button.addEventListener("touchend", (event) => {
+          event.preventDefault();
+          endHold();
+        }, { passive: false });
+        button.addEventListener("touchcancel", cancelHold);
+
+        button.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          startHold();
+        });
+        button.addEventListener("mouseup", (event) => {
+          event.preventDefault();
+          endHold();
+        });
+        button.addEventListener("mouseleave", cancelHold);
+        button.addEventListener("click", (event) => event.preventDefault());
+        return button;
+      }
+
+      button.addEventListener("touchend", (event) => {
+        event.preventDefault();
+        handleInput(label);
+      }, { passive: false });
+      button.addEventListener("click", () => handleInput(label));
+      return button;
+    }
+
+    function createKeyboard() {
+      keyboardEl.innerHTML = "";
+      KEY_GRID.forEach((row) => {
+        const rowEl = document.createElement("div");
+        rowEl.className = "keyrow";
+        row.forEach((label) => {
+          if (!label) {
+            const spacer = document.createElement("div");
+            spacer.setAttribute("aria-hidden", "true");
+            rowEl.appendChild(spacer);
+            return;
+          }
+          rowEl.appendChild(makeKey(label));
+        });
+        keyboardEl.appendChild(rowEl);
+      });
+    }
+
+    function updateBoard() {
+      const tiles = boardEl.querySelectorAll(".tile");
+      tiles.forEach((tile) => {
+        const row = Number(tile.dataset.row);
+        const col = Number(tile.dataset.col);
+        const guess = guesses[row] || (row === guesses.length ? currentGuess : "");
+        const letter = guess[col] || "";
+        tile.textContent = letter;
+        tile.classList.toggle("filled", letter !== "");
+        if (!tile.classList.contains("correct") && !tile.classList.contains("present") && !tile.classList.contains("absent")) {
+          tile.classList.remove("pop");
+        }
+      });
+    }
+
+    function scoreGuess(guess, answer) {
+      const marks = Array(COLS).fill("absent");
+      const answerLetters = answer.split("");
+
+      for (let i = 0; i < COLS; i += 1) {
+        if (guess[i] === answerLetters[i]) {
+          marks[i] = "correct";
+          answerLetters[i] = "*";
+        }
+      }
+
+      for (let i = 0; i < COLS; i += 1) {
+        if (marks[i] === "correct") continue;
+        const idx = answerLetters.indexOf(guess[i]);
+        if (idx > -1) {
+          marks[i] = "present";
+          answerLetters[idx] = "*";
+        }
+      }
+
+      return marks;
+    }
+
+    function setKeyState(letter, state) {
+      const key = document.querySelector(`.key[data-key="${letter}"]`);
+      if (!key) return;
+      const rank = { absent: 1, present: 2, correct: 3 };
+      const current = key.classList.contains("correct")
+        ? "correct"
+        : key.classList.contains("present")
+          ? "present"
+          : key.classList.contains("absent")
+            ? "absent"
+            : "";
+      if (!current || rank[state] > rank[current]) {
+        key.classList.remove("absent", "present", "correct");
+        key.classList.add(state);
+      }
+    }
+
+    function revealGuess(guessIndex, marks) {
+      const row = boardEl.children[guessIndex];
+      [...row.children].forEach((tile, i) => {
+        tile.classList.add(marks[i]);
+        setKeyState(guesses[guessIndex][i], marks[i]);
+      });
+    }
+
+    function isPositionAlreadyGuessed(position) {
+      const expectedLetter = solution[position];
+      if (currentGuess[position] === expectedLetter) {
+        return true;
+      }
+      return guesses.some((guess) => guess[position] === expectedLetter);
+    }
+
+    function giveHint() {
+      if (gameOver) {
+        announce("Game is over. Start a new game for hints.");
+        return;
+      }
+
+      for (let i = 0; i < COLS; i += 1) {
+        if (!isPositionAlreadyGuessed(i)) {
+          announce(`Hint: letter ${i + 1} is ${solution[i]}.`);
+          return;
+        }
+      }
+
+      announce("All letter positions have already been guessed.");
+    }
+
+    function submitGuess() {
+      if (currentGuess.length < COLS) {
+        announce("Word must be 5 letters.");
+        return;
+      }
+      if (!allowedWords.has(currentGuess.toLowerCase())) {
+        announce("Not in British dictionary.");
+        return;
+      }
+
+      const guess = currentGuess.toUpperCase();
+      guesses.push(guess);
+      currentGuess = "";
+      updateBoard();
+
+      const marks = scoreGuess(guess, solution);
+      revealGuess(guesses.length - 1, marks);
+
+      if (guess === solution) {
+        gameOver = true;
+        announce("Brilliant! You solved Pordle.");
+        return;
+      }
+
+      if (guesses.length >= ROWS) {
+        gameOver = true;
+        announce(`Out of tries. The word was ${solution}.`);
+        return;
+      }
+
+      announce("Keep going.");
+    }
+
+    function handleInput(raw) {
+      if (gameOver) return;
+
+      const key = raw.toUpperCase();
+
+      if (key === "ENTER") {
+        submitGuess();
+        return;
+      }
+
+      if (key === "BACKSPACE" || key === "DEL") {
+        if (currentGuess.length > 0) {
+          currentGuess = currentGuess.slice(0, -1);
+          updateBoard();
+        }
+        return;
+      }
+
+      if (/^[A-Z]$/.test(key) && currentGuess.length < COLS) {
+        currentGuess += key;
+        updateBoard();
+
+        const row = boardEl.children[guesses.length];
+        const tile = row.children[currentGuess.length - 1];
+        tile.classList.add("pop");
+        setTimeout(() => tile.classList.remove("pop"), 130);
+      }
+    }
+
+    function resetGame() {
+      solution = pickRandomWord().toUpperCase();
+      guesses = [];
+      currentGuess = "";
+      gameOver = false;
+      createBoard();
+      createKeyboard();
+      announce("Guess the 5-letter word.");
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        handleInput("ENTER");
+        return;
+      }
+      if (event.key === "Backspace") {
+        handleInput("BACKSPACE");
+        return;
+      }
+      if (/^[a-zA-Z]$/.test(event.key)) {
+        handleInput(event.key);
+      }
+    });
+
+    resetGame();
+  </script>
+</body>
+</html>
