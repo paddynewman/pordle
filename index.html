@@ -892,11 +892,58 @@
       "cat-07.jpeg", "cat-08.jpeg", "cat-09.jpeg", "cat-10.jpeg", "cat-11.jpeg", "cat-12.jpeg", "cat-13.jpeg"
     ];
 
+    const STORAGE_PREFIX = "pordle-state-";
+
     function getWordIndexForDate(date = new Date()) {
       const epoch = Date.UTC(2024, 0, 1);
       const today = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
       const dayCount = Math.floor((today - epoch) / (24 * 60 * 60 * 1000));
       return ((dayCount % BRITISH_WORDS.length) + BRITISH_WORDS.length) % BRITISH_WORDS.length;
+    }
+
+    function getTodayKey(date = new Date()) {
+      return STORAGE_PREFIX + date.toISOString().slice(0, 10);
+    }
+
+    function loadSavedState() {
+      try {
+        const saved = localStorage.getItem(getTodayKey());
+        return saved ? JSON.parse(saved) : null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function saveGameState() {
+      try {
+        const state = {
+          date: new Date().toISOString().slice(0, 10),
+          guesses,
+          gameOver
+        };
+        localStorage.setItem(getTodayKey(), JSON.stringify(state));
+      } catch (error) {
+        // Ignore storage failures.
+      }
+    }
+
+    function restoreSavedState(state) {
+      guesses = Array.isArray(state.guesses) ? state.guesses : [];
+      currentGuess = "";
+      gameOver = !!state.gameOver;
+      updateBoard();
+      guesses.forEach((guess, index) => {
+        revealGuess(index, scoreGuess(guess, solution));
+      });
+
+      if (gameOver) {
+        const lastGuess = guesses[guesses.length - 1] || "";
+        if (lastGuess === solution) {
+          announce("You already solved today's Purrrdle.");
+          return;
+        }
+        announce(`Out of tries. The word was ${solution}.`);
+      }
     }
 
     function pickDailyWord() {
@@ -1127,17 +1174,20 @@
 
       const marks = scoreGuess(guess, solution);
       revealGuess(guesses.length - 1, marks);
+      saveGameState();
 
       if (guess === solution) {
         gameOver = true;
-        announce("Brilliant! You solved Pordle.");
+        announce("Brilliant! You solved Purrrdle.");
         showCelebrationPopup();
+        saveGameState();
         return;
       }
 
       if (guesses.length >= ROWS) {
         gameOver = true;
         announce(`Out of tries. The word was ${solution}.`);
+        saveGameState();
         return;
       }
 
@@ -1180,6 +1230,13 @@
       gameOver = false;
       createBoard();
       createKeyboard();
+
+      const savedState = loadSavedState();
+      if (savedState && Array.isArray(savedState.guesses) && savedState.guesses.length) {
+        restoreSavedState(savedState);
+        return;
+      }
+
       announce("Guess the 5-letter word.");
     }
 
