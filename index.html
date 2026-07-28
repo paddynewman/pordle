@@ -174,7 +174,7 @@
       color: var(--keyboard-ink);
       font-weight: 800;
       font-size: 0.82rem;
-      min-height: 2.6rem;
+      min-height: 3.25rem;
       min-width: 0;
       cursor: pointer;
       touch-action: manipulation;
@@ -227,9 +227,9 @@
       width: min(100%, 420px);
       max-width: 420px;
       background: #fff;
-      border-radius: 16px;
+      border-radius: 0;
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16);
-      overflow: hidden;
+      overflow: visible;
       text-align: center;
       color: var(--ink);
     }
@@ -240,6 +240,7 @@
       height: auto;
       object-fit: cover;
       max-height: 320px;
+      border-radius: 0;
     }
 
     .modal-body {
@@ -295,7 +296,7 @@
       }
 
       .key {
-        min-height: 2.3rem;
+        min-height: 2.875rem;
         font-size: 0.74rem;
         padding: 0 0.12rem;
       }
@@ -334,7 +335,7 @@
       }
 
       .key {
-        min-height: 2.35rem;
+        min-height: 2.9375rem;
       }
     }
   </style>
@@ -883,7 +884,7 @@
     let enterHoldTimer = null;
     let suppressEnterTap = false;
 
-    const HELP_HOLD_MS = 3000;
+    const HOLD_MS = 800;
 
     const allowedWords = new Set(BRITISH_WORDS);
     const CELEBRATION_IMAGES = [
@@ -968,8 +969,8 @@
           suppressEnterTap = false;
           enterHoldTimer = setTimeout(() => {
             suppressEnterTap = true;
-            giveHint();
-          }, HELP_HOLD_MS);
+            announce("Hey! No cheating.");
+          }, HOLD_MS);
         };
 
         const endHold = () => {
@@ -1108,21 +1109,6 @@
       return guesses.some((guess) => guess[position] === expectedLetter);
     }
 
-    function giveHint() {
-      if (gameOver) {
-        announce("Game is over. Start a new game for hints.");
-        return;
-      }
-
-      for (let i = 0; i < COLS; i += 1) {
-        if (!isPositionAlreadyGuessed(i)) {
-          announce(`Hint: letter ${i + 1} is ${solution[i]}.`);
-          return;
-        }
-      }
-
-      announce("All letter positions have already been guessed.");
-    }
 
     function submitGuess() {
       if (currentGuess.length < COLS) {
